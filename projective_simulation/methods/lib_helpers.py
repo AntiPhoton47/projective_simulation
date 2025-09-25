@@ -4,18 +4,30 @@
 __all__ = ['CustomABCMeta']
 
 # %% ../../nbs/lib_nbs/methods/02_lib_helpers.ipynb 2
+import inspect
 from abc import ABCMeta
 
 
 class CustomABCMeta(ABCMeta):
+    def __new__(mcls, name, bases, ns, **kw):
+        cls = super().__new__(mcls, name, bases, ns, **kw)
+        # Advertise the class's constructor signature to inspect/nbdev.
+        try:
+            init_sig = inspect.signature(cls.__init__)
+            params = list(init_sig.parameters.values())
+            # Drop 'self' for a nicer class signature
+            if params and params[0].name == 'self':
+                params = params[1:]
+            cls.__signature__ = inspect.Signature(params)
+        except (TypeError, ValueError, AttributeError):
+            pass
+        return cls
+
     def __call__(cls, *args, **kwargs):
-        # If cls still has abstract methods, build a custom message
-        if cls.__abstractmethods__:
+        if getattr(cls, '__abstractmethods__', None):
             missing = ', '.join(sorted(cls.__abstractmethods__))
             raise TypeError(
-                f"Cannot instantiate class {cls.__name__} "
-                f"because it is missing method(s): {missing}.\n"
+                f"Cannot instantiate class {cls.__name__} because it is missing method(s): {missing}.\n"
                 f"Please implement all abstract methods (see documentation of class for details)."
             )
-        # Otherwise, call the normal __call__ to instantiate
         return super().__call__(*args, **kwargs)
