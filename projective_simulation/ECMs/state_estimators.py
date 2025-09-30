@@ -25,7 +25,7 @@ class Bayesian_Filter(Abstract_ECM):
         category_sizes: list[int],                                      #Number of states per sensory category.
         sensory_predictions: NDArray[np.float_],                        #Each row is a hypothesis; columns grouped by category_sizes, each group sums to 1.
         transition_predictions: NDArray[np.float_],                     #Each row is a hypothesis; columns give predicted probabilities for each hypothesis being true at the next step.
-        belief_prior: NDArray[np.float_] | None = None,                 #Initial belief prior. If None, set to uniform.
+        belief_prior: NDArray[np.float_] = None,                 #Initial belief prior. If None, set to uniform.
         log_base: float=2.,                                             #Base for logarithms and exponentials.
         data_record: list[str] = [],                                    #List of internal variable names to record each time step. Accepts "all".
         record_until: int = -1                                          #Number of time steps to record. Default -1 disables recording.
@@ -47,6 +47,8 @@ class Bayesian_Filter(Abstract_ECM):
         self.sensory_expectation = self.belief_prior @ self.sensory_predictions
         self.belief_posterior = np.full(self.num_hypotheses, 1/self.num_hypotheses)
         self.prepare_data_storage(data_record, record_until)
+
+        self._check_structure()
 
     def _check_structure(self):
         if sum(self.category_sizes) != np.shape(self.sensory_predictions)[1]:
@@ -203,7 +205,7 @@ class Bayesian_Filter(Abstract_ECM):
         one_hot_percept[np.cumsum(self.category_sizes) - self.category_sizes + self.percept] = True
         return one_hot_percept
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 7
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 8
 #### Sequence Memory Constructor Methods
 import numpy as np
 def Initialize_Memory_Based_Transition_Matrix(
@@ -236,23 +238,27 @@ def Initialize_Memory_Based_Transition_Matrix(
 
     return transition_predictions
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 8
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 9
 #### Sequence Memory Constructor Methods Cont.
 def Initialize_Sensory_Predictions(
         category_sizes: list[int] | NDArray[np.int_],
+        stationary_expectations: NDArray[np.float_],
         num_hypotheses: int
     )->NDArray[np.float_]:
     """
     Initializes a sensory prediction matrix for a memory-based ECM with a given category sizes and number of hypotheses.
     """
-    uniform_probabilities = np.concatenate([
-        np.full(category_size, 1 / category_size) for category_size in category_sizes
-            ])
-    sensory_predictions = np.tile(uniform_probabilities, (num_hypotheses, 1))
+    if stationary_expectations is None:
+        #set stationary expectations to uniform in all sensors
+        print("No stationary_expectations given, using uniform distributions for all sensors")
+        stationary_expectations = np.concatenate([
+            np.full(category_size, 1 / category_size) for category_size in category_sizes
+                ])
+    sensory_predictions = np.tile(stationary_expectations, (num_hypotheses, 1))
 
     return sensory_predictions
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 9
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 10
 import numpy as np
 
 class Sequence_Memory(Bayesian_Filter):
@@ -263,16 +269,17 @@ class Sequence_Memory(Bayesian_Filter):
     """
     def __init__(
         self,
-        category_sizes: list[int],                                                              #Number of states for each sensor/percept category.
-        memory_capacity: int,                                                                   #Number of memory-based hypotheses.
-        memory_bias: float,                                                                     #Probability of transitioning from non-memory to memory hypothesis space.
-        sensory_predictions: NDArray[np.float_] | None = None,                                  #Sensory hypotheses matrix. If None, initialized to uniform.
-        belief_prior: NDArray[np.float_] | None = None,                                         #Initial belief priors. If None, all prior on non-memory hypothesis.
-        transition_predictions: NDArray[np.float_] | None = None,                               #Hypothesis transition matrix.
-        timer: int = 0,                                                                         #Starting memory time index.
-        capacity_overflow_method: str="stop encoding",                                          #'loop' or 'stop encoding'.
-        data_record: list[str] = [],                                                            #List of variable names to log each time step. Accepts "all".
-        record_until: int = -1                                                                  #Number of steps to prepare for data logging. Negative disables recording.
+        category_sizes: list[int],                                                       #Number of states for each sensor/percept category.
+        memory_capacity: int,                                                            #Number of memory-based hypotheses.
+        memory_bias: float,                                                              #Probability of transitioning from non-memory to memory hypothesis space.
+        stationary_expectations: NDArray[np.float_] = None,                              #Expectation of sensory states in stationarity. Default to uniform distributions for each sensor.
+        sensory_predictions: NDArray[np.float_] = None,                                  #Sensory hypotheses matrix. If None, initialized to uniform.
+        belief_prior: NDArray[np.float_] = None,                                         #Initial belief priors. If None, all prior on non-memory hypothesis.
+        transition_predictions: NDArray[np.float_] = None,                               #Hypothesis transition matrix.
+        timer: int = 0,                                                                  #Starting memory time index.
+        capacity_overflow_method: str="stop encoding",                                   #'loop' or 'stop encoding'.
+        data_record: list[str] = [],                                                     #List of variable names to log each time step. Accepts "all".
+        record_until: int = -1                                                           #Number of steps to prepare for data logging. Negative disables recording.
     ):
         """
         Initializes default sensory_predictions (observation function) and transition_predictions (transition function) if not given
@@ -281,7 +288,7 @@ class Sequence_Memory(Bayesian_Filter):
         self.memory_capacity = memory_capacity
         self.memory_bias = memory_bias
         self.capacity_overflow_method = capacity_overflow_method
-        self.num_non_memory_hypotheses = 1
+        self.num_non_memory_hypotheses = 1 #hard-coded for now to represent single stationary hypothesis, but flexbility exists to handle multiple non-memory hypotheses
         self.timer = timer
         self.effective_capacity = min(self.timer, self.memory_capacity)
 
@@ -290,8 +297,12 @@ class Sequence_Memory(Bayesian_Filter):
         if sensory_predictions is None:
             sensory_predictions = Initialize_Sensory_Predictions(
                 category_sizes=category_sizes,
+                stationary_expectations=stationary_expectations,
                 num_hypotheses=num_hypotheses
             )
+        else:
+            if not stationary_expectations is None:
+                print("Warning: Provided sensory_predictions will overide stationary_expectations")
 
         #default to transition matrix that encodes sequence memory if not provided
         if transition_predictions is None:
@@ -319,7 +330,9 @@ class Sequence_Memory(Bayesian_Filter):
         self.belief_posterior = np.zeros(self.num_hypotheses)
         self.belief_posterior[self.memory_capacity:] = 1 / self.num_non_memory_hypotheses 
 
-    def _check_structure(self):
+        self._check_memory_structure()
+
+    def _check_memory_structure(self):
         """
         Check that all internal probability distributions are valid (Per Parent class).
         Check that no belief is assigned to unencoded memory slots.
@@ -327,6 +340,8 @@ class Sequence_Memory(Bayesian_Filter):
         super()._check_structure()
         if self.effective_capacity < self.memory_capacity:
             if np.sum(self.belief_prior[self.effective_capacity:self.memory_capacity]) > 1e-9:
+                raise ValueError("Prior belief assigned to unencoded memory slot.")
+            if np.sum(self.belief_posterior[self.effective_capacity:self.memory_capacity]) > 1e-9:
                 raise ValueError("Posterior belief assigned to unencoded memory slot.")
 
     def sample(self,
@@ -352,7 +367,7 @@ class Sequence_Memory(Bayesian_Filter):
             if self.effective_capacity + 1 == self.memory_capacity:
                 self.capacity_reached()
             self.encode_memory()
-        self._check_structure()
+        self._check_memory_structure()
 
     def capacity_reached(self):
         """
@@ -381,7 +396,7 @@ class Sequence_Memory(Bayesian_Filter):
 
             
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 13
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 14
 from ..methods.transforms import decay_toward_stationary
 
 class Short_Term_Memory(Sequence_Memory):
@@ -396,9 +411,10 @@ class Short_Term_Memory(Sequence_Memory):
         memory_capacity: int,                                       #Number of memory nodes.
         memory_bias: float,                                         #Transition probability from non-memory to memory hypothesis.
         fading_rate: float,                                         #Rate parameter for exponential decay toward uniform for memory traces.
-        sensory_predictions: NDArray[np.float_] | None = None,               #Optional sensory-to-memory weight matrix.
-        belief_prior: NDArray[np.float_] | None = None,                      #Optional 1d array of prior expectations on memories.
-        transition_predictions: NDArray[np.float_] | None = None,            #Optional memory transition matrix.
+        stationary_expectations: NDArray[np.float_] = None,         #Expectation of sensory states in stationarity. Default to uniform distributions for each sensor.
+        sensory_predictions: NDArray[np.float_] = None,               #Optional sensory-to-memory weight matrix.
+        belief_prior: NDArray[np.float_] = None,                      #Optional 1d array of prior expectations on memories.
+        transition_predictions: NDArray[np.float_] = None,            #Optional memory transition matrix.
         timer: int = 0,                                             #Starting memory time index.
         data_record: list[str] = [],                                #List of variable names to record each time step. Accepts "all".
         record_until: int = -1,                                     #Number of steps to prepare for data recording. Negative disables recording.
@@ -412,6 +428,7 @@ class Short_Term_Memory(Sequence_Memory):
             category_sizes=category_sizes,
             memory_capacity=memory_capacity,
             memory_bias=memory_bias,
+            stationary_expectations=stationary_expectations,
             sensory_predictions=sensory_predictions,
             belief_prior=belief_prior,
             transition_predictions=transition_predictions,
@@ -478,7 +495,7 @@ class Short_Term_Memory(Sequence_Memory):
             )
             self.sensory_predictions[:self.memory_capacity, self.category_indexer == i] = faded_memories
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 19
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 20
 ## Fading Rate Encoders for Long-Term Memory
 def sigmoid_fading_rate(
         gamma: float,                                   #default fading rate
@@ -515,7 +532,7 @@ def surprise_advantage_fading_rate(
     fading_rates = gamma ** (log_base ** (sigma * surprise_gaps))
     return(fading_rates)
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 20
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 21
 class Long_Term_Memory(Short_Term_Memory):
     """
     Long_Term_Memory extends Short_Term_Memory by introducing surprise-modulated memory fading and memory stabilization.
@@ -529,10 +546,11 @@ class Long_Term_Memory(Short_Term_Memory):
         memory_bias: float,                         #Transition probability from non-memory to memory hypothesis.
         fading_rate: float,                         #Base rate parameter for exponential decay toward uniform for memory traces.
         surprise_factor: float = 0.,                #Scales the degree to which surprise slows down memory fading.
-        reuse_factor: float = 0.,                   #Scales the degree to which reactivation slows fading.
-        sensory_predictions: NDArray[np.float_]|None = None,     #Optional sensory-to-memory weight matrix.
-        belief_prior: NDArray[np.float_]|None = None,            #Optional 1d array of prior expectations on memories.
-        transition_predictions: NDArray[np.float_]|None = None,  #Optional memory transition matrix.
+        consolidation_rate: float = 0.,             #Scales the degree to which reactivation slows fading.
+        stationary_expectations: NDArray[np.float_] = None, #Expectation of sensory states in stationarity. Default to uniform distributions for each sensor.
+        sensory_predictions: NDArray[np.float_] = None,     #Optional sensory-to-memory weight matrix.
+        belief_prior: NDArray[np.float_] = None,            #Optional 1d array of prior expectations on memories.
+        transition_predictions: NDArray[np.float_] = None,  #Optional memory transition matrix.
         timer: int = 0,                                 # Starting memory time index.
         data_record: list[str] = [],                    #List of variable names to record each time step. Accepts "all".
         record_until: int = -1,                         #Number of steps to prepare for data recording. Negative disables recording.
@@ -548,6 +566,7 @@ class Long_Term_Memory(Short_Term_Memory):
             memory_capacity=memory_capacity,
             memory_bias=memory_bias,
             fading_rate=fading_rate,
+            stationary_expectations=stationary_expectations,
             sensory_predictions=sensory_predictions,
             belief_prior=belief_prior,
             transition_predictions=transition_predictions,
@@ -559,7 +578,7 @@ class Long_Term_Memory(Short_Term_Memory):
         )
         assert 0 <= surprise_factor <= 1, "surprise_factor must be in [0, 1]"
         self.surprise_factor = surprise_factor
-        self.reuse_factor = reuse_factor
+        self.consolidation_rate = consolidation_rate
         self.fading_rate_method = fading_rate_method
         self.memory_fade = np.zeros((np.shape(self.sensory_predictions)[0], len(self.category_sizes)))  # fading rates for all memories
 
@@ -589,7 +608,7 @@ class Long_Term_Memory(Short_Term_Memory):
         Reduce fading rate of reactivated memories according to the weight of reactivation (posterior belief).
         """
         for i in range(self.effective_capacity):
-            self.memory_fade[i, :] = self.memory_fade[i, :] * (1 - (self.belief_posterior[i] * self.reuse_factor))
+            self.memory_fade[i, :] = self.memory_fade[i, :] * (1 - (self.belief_posterior[i] * self.consolidation_rate))
 
     def encode_memory(
             self, 
@@ -638,28 +657,9 @@ class Long_Term_Memory(Short_Term_Memory):
 # %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 27
 class Associative_Memory(Long_Term_Memory):
     """
-    Associative Memory extends Long_Term_Memory by introducing learning and re-encoding mechanisms.
-    This class allows memory traces to be updated based on prediction differences (learning_factor) and reactivation (reencoding_factor).
+    Associative_Memory extends Long_Term_Memory by introducing learning and re-encoding mechanisms.
+    This class allows memory traces to be updated based on prediction differences (reassociation_rate) and reactivation (reencoding_rate).
     Transition weights between memory traces can be learned, and reactivation can reinforce or generalize memory traces.
-
-    Args:
-        category_sizes (list): Number of sensory input elements.
-        memory_capacity (int): 
-        memory_bias (float): 
-        fading_rate (float): 
-        surprise_factor (float, optional): 
-        reuse_factor (float, optional): 
-        learning_factor (float, optional): 
-        reencoding_factor (float, optional): 
-        sensory_predictions (np.ndarray, optional):
-        belief_prior (np.ndarray, optional): 
-        transition_predictions (np.ndarray, optional): 
-        timer (int, optional): 
-        data_record (list, optional):
-        record_until (int, optional): 
-        fading_rate_method (str, optional): 
-        capacity_overflow_method (str, optional): 
-        schematic_transition_method (str, optional): 
     """
     def __init__(
         self,
@@ -668,12 +668,13 @@ class Associative_Memory(Long_Term_Memory):
         memory_bias: float,                         #Transition probability from non-memory to memory hypothesis.
         fading_rate: float,                         #Base rate parameter for exponential decay toward uniform for memory traces.
         surprise_factor: float = 0.,                #Scales the degree to which surprise slows down memory fading.
-        reuse_factor: float = 0.,                   #Scales the degree to which reactivation slows fading.
-        learning_factor: float = 0.,                #Scales influence of prediction differences on transition weights.
-        reencoding_factor: float = 0.,              #Scales the degree to which re-activation of a memory affects its sensory predictions.
-        sensory_predictions: NDArray[np.float_]|None = None,     #Optional sensory-to-memory weight matrix.
-        belief_prior: NDArray[np.float_]|None = None,            #Optional 1d array of prior expectations on memories.
-        transition_predictions: NDArray[np.float_]|None = None,  #Optional memory transition matrix.
+        consolidation_rate: float = 0.,             #Scales the degree to which reactivation slows fading.
+        reassociation_rate: float = 0.,             #Scales influence of prediction differences on transition weights.
+        reencoding_rate: float = 0.,                #Scales the degree to which re-activation of a memory affects its sensory predictions.
+        stationary_expectations: NDArray[np.float_] = None,      #Expectation of sensory states in stationarity. Default to uniform distributions for each sensor.
+        sensory_predictions: NDArray[np.float_] = None,     #Optional sensory-to-memory weight matrix.
+        belief_prior: NDArray[np.float_] = None,            #Optional 1d array of prior expectations on memories.
+        transition_predictions: NDArray[np.float_] = None,  #Optional memory transition matrix.
         timer: int = 0,                                     #Starting memory time index.
         data_record: list[str] = [],                        #List of variable names to record each time step. Accepts "all".
         record_until: int = -1,                             #Number of steps to prepare for data recording. Negative disables recording.
@@ -699,8 +700,9 @@ class Associative_Memory(Long_Term_Memory):
             memory_bias=memory_bias,
             fading_rate=fading_rate,
             surprise_factor=surprise_factor,
+            stationary_expectations=stationary_expectations,
             sensory_predictions=sensory_predictions,
-            reuse_factor=reuse_factor,
+            consolidation_rate=consolidation_rate,
             belief_prior=belief_prior,
             transition_predictions=transition_predictions,
             timer=timer,
@@ -710,8 +712,8 @@ class Associative_Memory(Long_Term_Memory):
             capacity_overflow_method=capacity_overflow_method,
             schematic_transition_method=schematic_transition_method
         )
-        self.learning_factor = learning_factor
-        self.reencoding_factor = reencoding_factor
+        self.reassociation_rate = reassociation_rate
+        self.reencoding_rate = reencoding_rate
         self.presynaptic_activations = np.zeros_like(self.transition_predictions)  # initialize
 
     def sample(
@@ -743,7 +745,7 @@ class Associative_Memory(Long_Term_Memory):
         """
         categorical_encoding = self.get_one_hot_percept(self.percept).astype(float)
         for i in range(self.timer):
-            reencoding_strength = self.reencoding_factor * self.belief_posterior[i]
+            reencoding_strength = self.reencoding_rate * self.belief_posterior[i]
             reencoded_memory = reencoding_strength * categorical_encoding + (1 - reencoding_strength) * self.sensory_predictions[i, :]
             self.sensory_predictions[i, :] = reencoded_memory
 
@@ -751,7 +753,7 @@ class Associative_Memory(Long_Term_Memory):
         """
         Update transition weights between memory traces based on prediction differences and learning factor.
         """
-        weighted_synapse_differences = self.learning_factor * (np.outer(self.last_posterior, self.belief_posterior) - self.presynaptic_activations)
+        weighted_synapse_differences = self.reassociation_rate * (np.outer(self.last_posterior, self.belief_posterior) - self.presynaptic_activations)
         if self.schematic_transition_method == "learned":
             self.transition_predictions = self.transition_predictions + weighted_synapse_differences
         else:

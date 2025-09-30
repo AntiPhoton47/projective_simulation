@@ -8,7 +8,7 @@ from .core import Abstract_Env
 import numpy as np
 from numpy.typing import NDArray
 
-# %% ../../nbs/lib_nbs/envs/POMDPs.ipynb 5
+# %% ../../nbs/lib_nbs/envs/POMDPs.ipynb 4
 class POMDP(Abstract_Env):
     """
     A general constructor for POMDPs
@@ -58,7 +58,7 @@ class POMDP(Abstract_Env):
         percept_index = np.random.choice(len(percept_probs), p = percept_probs)
         return self.percepts[percept_index,:]
 
-# %% ../../nbs/lib_nbs/envs/POMDPs.ipynb 11
+# %% ../../nbs/lib_nbs/envs/POMDPs.ipynb 10
 class Cyclic_Env(POMDP):
     """
     An environment that cycles deterministically through a sequence of percepts that may be passed to an agent
@@ -94,7 +94,7 @@ class Cyclic_Env(POMDP):
         action = 0
         super().transition(action)
 
-# %% ../../nbs/lib_nbs/envs/POMDPs.ipynb 18
+# %% ../../nbs/lib_nbs/envs/POMDPs.ipynb 17
 class Noisy_Cycle(POMDP):
     def __init__(self,
                  percepts: NDArray[np.int_],     #an SxK array where S is the number of Percepts and K is the number of categories for each percept
