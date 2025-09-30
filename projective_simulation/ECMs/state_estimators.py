@@ -22,13 +22,13 @@ class Bayesian_Filter(Abstract_ECM):
     """
     def __init__(
         self,
-        category_sizes: list[int],                                                    #Number of states per sensory category.
-        sensory_predictions: NDArray[np.float_],                                      #Each row is a hypothesis; columns grouped by category_sizes, each group sums to 1.
-        transition_predictions: NDArray[np.float_],                                   #Each row is a hypothesis; columns give predicted probabilities for each hypothesis being true at the next step.
-        belief_prior: NDArray[np.float_] | None = None,                               #Initial belief prior. If None, set to uniform.
-        log_base: float=2.,                                                           #Base for logarithms and exponentials.
-        data_record: list[str] = [],                                                  #List of internal variable names to record each time step. Accepts "all".
-        record_until: int = -1                                                        #Number of time steps to record. Default -1 disables recording.
+        category_sizes: list[int],                                      #Number of states per sensory category.
+        sensory_predictions: NDArray[np.float_],                        #Each row is a hypothesis; columns grouped by category_sizes, each group sums to 1.
+        transition_predictions: NDArray[np.float_],                     #Each row is a hypothesis; columns give predicted probabilities for each hypothesis being true at the next step.
+        belief_prior: NDArray[np.float_] | None = None,                 #Initial belief prior. If None, set to uniform.
+        log_base: float=2.,                                             #Base for logarithms and exponentials.
+        data_record: list[str] = [],                                    #List of internal variable names to record each time step. Accepts "all".
+        record_until: int = -1                                          #Number of time steps to record. Default -1 disables recording.
     ):
         '''
         Defines self variables, sets up data recording, runs structure checks
@@ -204,6 +204,7 @@ class Bayesian_Filter(Abstract_ECM):
         return one_hot_percept
 
 # %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 7
+#### Sequence Memory Constructor Methods
 import numpy as np
 def Initialize_Memory_Based_Transition_Matrix(
         memory_capacity: int,                     #the number of memory-based hypothesis
@@ -235,6 +236,8 @@ def Initialize_Memory_Based_Transition_Matrix(
 
     return transition_predictions
 
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 8
+#### Sequence Memory Constructor Methods Cont.
 def Initialize_Sensory_Predictions(
         category_sizes: list[int] | NDArray[np.int_],
         num_hypotheses: int
@@ -249,12 +252,12 @@ def Initialize_Sensory_Predictions(
 
     return sensory_predictions
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 8
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 9
 import numpy as np
 
 class Sequence_Memory(Bayesian_Filter):
     """
-    Memory-augmented Bayesian filter that encodes a sequence of percepts as memory traces.
+    Memory-based Bayesian filter that encodes a sequence of percepts as memory traces.
     Each memory trace is a hypothesis about the environment, and the agent can transition between non-memory and memory hypotheses. 
     Memory traces are encoded by dynamic modification of transition function and observation function.
     """
@@ -378,12 +381,12 @@ class Sequence_Memory(Bayesian_Filter):
 
             
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 12
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 13
 from ..methods.transforms import decay_toward_stationary
 
 class Short_Term_Memory(Sequence_Memory):
     """
-    Short-Term Memory filter that extends Sequence_Memory by introducing memory fading.
+    Short-Term Memory extends Sequence_Memory by introducing memory fading.
     Each encoded memory trace fades toward the stationary sensory predictions at a specified rate.
     Supports different schematic transition methods and capacity overflow behaviors.
     """
@@ -393,9 +396,9 @@ class Short_Term_Memory(Sequence_Memory):
         memory_capacity: int,                                       #Number of memory nodes.
         memory_bias: float,                                         #Transition probability from non-memory to memory hypothesis.
         fading_rate: float,                                         #Rate parameter for exponential decay toward uniform for memory traces.
-        sensory_predictions: NDArray[np.float_] | None = None,      #Optional sensory-to-memory weight matrix.
-        belief_prior: NDArray[np.float_] | None = None,             #Optional 1d array of prior expectations on memories.
-        transition_predictions: NDArray[np.float_] | None = None,   #Optional memory transition matrix.
+        sensory_predictions: NDArray[np.float_] | None = None,               #Optional sensory-to-memory weight matrix.
+        belief_prior: NDArray[np.float_] | None = None,                      #Optional 1d array of prior expectations on memories.
+        transition_predictions: NDArray[np.float_] | None = None,            #Optional memory transition matrix.
         timer: int = 0,                                             #Starting memory time index.
         data_record: list[str] = [],                                #List of variable names to record each time step. Accepts "all".
         record_until: int = -1,                                     #Number of steps to prepare for data recording. Negative disables recording.
@@ -476,7 +479,7 @@ class Short_Term_Memory(Sequence_Memory):
             self.sensory_predictions[:self.memory_capacity, self.category_indexer == i] = faded_memories
 
 # %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 19
-## Fading Rate Encoders
+## Fading Rate Encoders for Long-Term Memory
 def sigmoid_fading_rate(
         gamma: float,                                   #default fading rate
         sigma: float,                                   #surprise factor
@@ -512,11 +515,11 @@ def surprise_advantage_fading_rate(
     fading_rates = gamma ** (log_base ** (sigma * surprise_gaps))
     return(fading_rates)
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 21
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 20
 class Long_Term_Memory(Short_Term_Memory):
     """
-    Long-Term Memory filter that extends Short_Term_Memory by introducing surprise-modulated memory fading and memory stabilization.
-    Each encoded memory trace fades toward a uniform distribution at a rate modulated by the surprise of the encoded percept and by reactivation.
+    Long_Term_Memory extends Short_Term_Memory by introducing surprise-modulated memory fading and memory stabilization.
+    Each encoded memory trace fades toward a given (estimated) stationary distribution at a rate modulated by the surprise of the encoded percept and by reactivation.
     Reactivation slows fading and can reinforce the memory trace, stabilizing early memories of sequences.
     """
     def __init__(
@@ -632,10 +635,10 @@ class Long_Term_Memory(Short_Term_Memory):
         return fading_rates
 
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 26
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 27
 class Associative_Memory(Long_Term_Memory):
     """
-    Associative Memory filter that extends Long_Term_Memory by introducing learning and re-encoding mechanisms.
+    Associative Memory extends Long_Term_Memory by introducing learning and re-encoding mechanisms.
     This class allows memory traces to be updated based on prediction differences (learning_factor) and reactivation (reencoding_factor).
     Transition weights between memory traces can be learned, and reactivation can reinforce or generalize memory traces.
 
