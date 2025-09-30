@@ -65,6 +65,7 @@ website:
             - lib_nbs/envs/01_core.ipynb
             - lib_nbs/envs/foraging_envs.ipynb
             - lib_nbs/envs/POMDPs.ipynb
+            - lib_nbs/envs/factorized_POMDPs.ipynb
 
     # Group 3 — Tutorials
     - title: Tutorials

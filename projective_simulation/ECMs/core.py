@@ -9,9 +9,9 @@ def standard_ps_upd(reward, hmatrix, gmatrix, h_damp, g_damp):
     '''
     Given a reward, updates h-matrix and g-matrix following the standard PS update rule:
 
-    $h \leftarrow h - h_{damp}*(h-1)+ reward*g$
+    $h \\leftarrow h - h_{damp}*(h-1)+ reward*g$
     
-    $g \leftarrow (1-g_{damp})*g$   
+    $g \\leftarrow (1-g_{damp})*g$   
     '''
     
     # damping h-matrix
