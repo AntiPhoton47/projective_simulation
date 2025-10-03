@@ -210,10 +210,10 @@ class Bayesian_Filter(Abstract_ECM):
 import numpy as np
 def Initialize_Memory_Based_Transition_Matrix(
         memory_capacity: int,                     #the number of memory-based hypothesis
-        memory_bias: float,                       #parameter that defines initial edge-weights between stationary hypotheses and memory hypotheses. Exact implementation depends on schematic_transition_method
+        memory_bias: float,                       #parameter that defines initial edge-weights between stationary hypotheses and memory hypotheses. Exact implementation depends on stationary_transition_method
         num_hypotheses: int,                      #total number of hypoetheses (memory based + stationary/schematic)
         capacity_overflow_method: str,            #how to hnadle last memory based hypothesis. Accepts "stop encoding" or "loop"            
-        schematic_transition_method: str ="first" #implementation of memory_bias. treats as values except "learned" as "first"
+        stationary_transition_method: str ="first" #implementation of memory_bias. treats as values except "learned" as "first"
     )->NDArray[np.float_]:
     """
     Initializes a default transition matrix for a memory-based ECM with a given memory capacity and memory bias.
@@ -223,7 +223,7 @@ def Initialize_Memory_Based_Transition_Matrix(
     for i in range(memory_capacity):
         transition_predictions[i, (i + 1) % memory_capacity] = 1.0
 
-    if capacity_overflow_method == "stop encoding" or schematic_transition_method == "learned":
+    if capacity_overflow_method == "stop encoding" or stationary_transition_method == "learned":
         transition_predictions[memory_capacity - 1, 0] = 0
         for i in range(memory_capacity, num_hypotheses):
             transition_predictions[i, i] = 1 - memory_bias
@@ -279,7 +279,8 @@ class Sequence_Memory(Bayesian_Filter):
         timer: int = 0,                                                                  #Starting memory time index.
         capacity_overflow_method: str="stop encoding",                                   #'loop' or 'stop encoding'.
         data_record: list[str] = [],                                                     #List of variable names to log each time step. Accepts "all".
-        record_until: int = -1                                                           #Number of steps to prepare for data logging. Negative disables recording.
+        record_until: int = -1,                                                          #Number of steps to prepare for data logging. Negative disables recording.
+        stationary_transition_method:str="first"                                         #'encoded', 'first', or 'learned'.
     ):
         """
         Initializes default sensory_predictions (observation function) and transition_predictions (transition function) if not given
@@ -291,6 +292,7 @@ class Sequence_Memory(Bayesian_Filter):
         self.num_non_memory_hypotheses = 1 #hard-coded for now to represent single stationary hypothesis, but flexbility exists to handle multiple non-memory hypotheses
         self.timer = timer
         self.effective_capacity = min(self.timer, self.memory_capacity)
+        self.stationary_transition_method = stationary_transition_method
 
         num_hypotheses = self.num_non_memory_hypotheses + self.memory_capacity
         #default to uniform sensory predictions if not provided
@@ -310,7 +312,8 @@ class Sequence_Memory(Bayesian_Filter):
                 memory_capacity=self.memory_capacity,
                 memory_bias=self.memory_bias,
                 num_hypotheses=num_hypotheses,
-                capacity_overflow_method=self.capacity_overflow_method
+                capacity_overflow_method=self.capacity_overflow_method,
+                stationary_transition_method=stationary_transition_method
             )
         
         super().__init__(
@@ -394,6 +397,18 @@ class Sequence_Memory(Bayesian_Filter):
         categorical_encoding = self.get_one_hot_percept(percept).astype(float)
         self.sensory_predictions[self.timer, :] = categorical_encoding
 
+        if self.stationary_transition_method == "first" and self.capacity_overflow_method == 'loop':
+            for i in range(self.memory_capacity, self.num_hypotheses):
+                #check if overwritten trace was oldest and update stationary transition probability to new oldest trace
+                if self.transition_predictions[i,self.timer] > 0.:
+                    self.transition_predictions[i,self.timer] = 0
+                    new_oldest = self.timer + 1 % self.effective_capacity
+                    self.transition_predictions[i,new_oldest] = self.memory_bias
+
+        if self.stationary_transition_method == "encoded":
+            for i in range(self.memory_capacity, self.num_hypotheses):
+                self.transition_predictions[i, :self.effective_capacity] = self.memory_bias/self.effective_capacity
+
             
 
 # %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 14
@@ -419,7 +434,7 @@ class Short_Term_Memory(Sequence_Memory):
         data_record: list[str] = [],                                #List of variable names to record each time step. Accepts "all".
         record_until: int = -1,                                     #Number of steps to prepare for data recording. Negative disables recording.
         capacity_overflow_method:str="loop",                        #'loop' or 'stop encoding'.
-        schematic_transition_method:str="encoded"                   #'encoded', 'first', or 'learned'.
+        stationary_transition_method:str="encoded"                   #'encoded', 'first', or 'learned'.
     ):
         """
         Sets internal variables, initializes default sensory_predictions and transition_predictions if None given, runs structure checks
@@ -438,9 +453,9 @@ class Short_Term_Memory(Sequence_Memory):
             capacity_overflow_method=capacity_overflow_method
         )
         self.fading_rate = fading_rate
-        self.schematic_transition_method = schematic_transition_method
+        self.stationary_transition_method = stationary_transition_method
 
-        if self.schematic_transition_method == "encoded" and transition_predictions is None:
+        if self.stationary_transition_method == "encoded" and transition_predictions is None:
             for i in range(self.memory_capacity, np.shape(self.transition_predictions)[0]):
                 self.transition_predictions[i, i] = 1 - self.memory_bias
                 self.transition_predictions[i, self.timer] = self.memory_bias
@@ -460,10 +475,7 @@ class Short_Term_Memory(Sequence_Memory):
         Handles schematic transition methods and capacity overflow.
         """
         super().encode_memory(percept)
-        if self.schematic_transition_method == "encoded":
-            for i in range(self.memory_capacity, self.num_hypotheses):
-                self.transition_predictions[i, :self.effective_capacity] = self.memory_bias/self.effective_capacity
-        elif self.schematic_transition_method == "learned":
+        if self.stationary_transition_method == "learned":
             for i in range(self.memory_capacity,self.num_hypotheses):
                 #add weight to transition from non-memory hypotheses to current memory hypothesis then renormalize
                 self.transition_predictions[i, self.timer] = self.memory_bias/self.effective_capacity
@@ -478,7 +490,7 @@ class Short_Term_Memory(Sequence_Memory):
         if self.capacity_overflow_method == "loop":
             self.transition_predictions[self.effective_capacity, :] = 0.
             self.transition_predictions[self.effective_capacity, 0] = 1.
-            if not self.schematic_transition_method == "encoded":
+            if not self.stationary_transition_method == "encoded":
                 for i in range(self.memory_capacity, self.num_hypotheses):
                     self.transition_predictions[i, i] = 1.
                     self.transition_predictions[i, 0] = 0.
@@ -556,7 +568,7 @@ class Long_Term_Memory(Short_Term_Memory):
         record_until: int = -1,                         #Number of steps to prepare for data recording. Negative disables recording.
         fading_rate_method:str = "sigmoid",             #Method for computing fading rates ("sigmoid" or "surprise_advantage").
         capacity_overflow_method:str = "stop encoding", #'loop' or 'stop encoding'.
-        schematic_transition_method:str = "encoded"     #'encoded', 'first', or 'learned'.
+        stationary_transition_method:str = "encoded"     #'encoded', 'first', or 'learned'.
     ):
         """
         Initialize the Long_Term_Memory filter.
@@ -574,7 +586,7 @@ class Long_Term_Memory(Short_Term_Memory):
             data_record=data_record,
             record_until=record_until,
             capacity_overflow_method=capacity_overflow_method,
-            schematic_transition_method=schematic_transition_method
+            stationary_transition_method=stationary_transition_method
         )
         assert 0 <= surprise_factor <= 1, "surprise_factor must be in [0, 1]"
         self.surprise_factor = surprise_factor
@@ -680,18 +692,18 @@ class Associative_Memory(Long_Term_Memory):
         record_until: int = -1,                             #Number of steps to prepare for data recording. Negative disables recording.
         fading_rate_method: str = "sigmoid",                #Method for computing fading rates ("sigmoid" or "surprise_advantage").
         capacity_overflow_method: str = "stop encoding",    #'loop' or 'stop encoding'.
-        schematic_transition_method: str = "learned"        #'encoded', 'first', or 'learned'.
+        stationary_transition_method: str = "learned"        #'encoded', 'first', or 'learned'.
     ):
         """
         Initialize the Associative_Memory filter.
         """
-        if schematic_transition_method == "learned" and transition_predictions is None:
+        if stationary_transition_method == "learned" and transition_predictions is None:
             transition_predictions = Initialize_Memory_Based_Transition_Matrix(
                 memory_capacity=memory_capacity,
                 memory_bias=memory_bias,
                 num_hypotheses=memory_capacity + 1,
                 capacity_overflow_method=capacity_overflow_method,
-                schematic_transition_method=schematic_transition_method,
+                stationary_transition_method=stationary_transition_method,
             )
 
         super().__init__(
@@ -710,7 +722,7 @@ class Associative_Memory(Long_Term_Memory):
             record_until=record_until,
             fading_rate_method=fading_rate_method,
             capacity_overflow_method=capacity_overflow_method,
-            schematic_transition_method=schematic_transition_method
+            stationary_transition_method=stationary_transition_method
         )
         self.reassociation_rate = reassociation_rate
         self.reencoding_rate = reencoding_rate
@@ -754,7 +766,7 @@ class Associative_Memory(Long_Term_Memory):
         Update transition weights between memory traces based on prediction differences and learning factor.
         """
         weighted_synapse_differences = self.reassociation_rate * (np.outer(self.last_posterior, self.belief_posterior) - self.presynaptic_activations)
-        if self.schematic_transition_method == "learned":
+        if self.stationary_transition_method == "learned":
             self.transition_predictions = self.transition_predictions + weighted_synapse_differences
         else:
-            print("Warning: Transition updates ignored because schematic_transition_method is not 'learned'.")
+            print("Warning: Transition updates ignored because stationary_transition_method is not 'learned'.")

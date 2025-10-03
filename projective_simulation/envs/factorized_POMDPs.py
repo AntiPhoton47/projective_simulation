@@ -76,9 +76,7 @@ class Factorized_POMDP(Abstract_Env):
         """
         Calculate the stationary distribution of the environment's transition function.
         """
-        # Get the number of states
-        num_states = self.transition_function.shape[0]
-        
+             
         # Average over actions to get a single transition matrix
         avg_transition_matrix = np.mean(self.transition_function, axis=2)
         
@@ -97,8 +95,6 @@ class Factorized_POMDP(Abstract_Env):
         
         # Normalize to ensure it sums to 1
         stat_dist /= np.sum(stat_dist)
-
-        print("WARNING: get_stationary_state_distribution has not been validated and tested for general POMDPs.")
         
         return stat_dist
     
@@ -360,7 +356,7 @@ class List_Sequencer(Factorized_POMDP):
         transition_function = np.zeros((num_states, num_states, num_actions), dtype=float)
         for i in range(num_states - 1):
             transition_function[i, i + 1, 0] = 1.0
-        transition_function[num_states - 1, num_states - 1, 0] = 1.0
+        transition_function[num_states - 1, 0, 0] = 1.0
 
         # ---------- parent init ----------
         super().__init__(
@@ -598,7 +594,7 @@ class Series_Recognition_Probe(List_Sequencer):
         self.transition_function = np.zeros((num_states, num_states, num_actions), dtype=float)
         for i in range(num_states - 1):
             self.transition_function[i, i + 1, 0] = 1.0
-        self.transition_function[num_states - 1, num_states - 1, 0] = 1.0
+        self.transition_function[num_states - 1, 0, 0] = 1.0 #sequence repeats
 
         # ---------- persistent attributes for inspection ----------
         self.retention_interval = retention_interval

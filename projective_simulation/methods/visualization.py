@@ -76,6 +76,7 @@ def plot_heatmap(matrix: NDArray[np.float_],
                  vmax:float|None=None,                                          #maximum for heatmap colorscale
                  label_scale:float=1.0,                                         #multiplier for label sizes
                  colorbar_kwargs: dict[str,Any] | None ={},                     #arguments to pass to colorbar function
+                 category_sizes: list[int] | None = None
                 ):
     """
     Plots a heatmap of the given matrix using the intensity of a single color,
@@ -129,6 +130,11 @@ def plot_heatmap(matrix: NDArray[np.float_],
         ax.set_yticks(yticks)
         if ytick_labels is not None:
             ax.set_yticklabels(ytick_labels, fontsize=tick_fontsize)
+    
+    # Add category h-lines
+    if not category_sizes is None:
+        for x in np.cumsum(category_sizes)[:-1]:
+            ax.axvline(x, color = "black", linewidth = 2)
 
     # Handle colorbar with passed arguments
     if colorbar_kwargs is not None:
