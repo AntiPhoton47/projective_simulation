@@ -263,6 +263,7 @@ def memory_filter_performance(memory_data: dict[str,Any],
     
     # Right Plot (Surprise)
     plt.sca(axes_array[0,2])
+    total_surprisals = np.sum(memory_data["surprise"], axis = 1)
     if stacked == True:
         surprisals = memory_data["surprise"]
         y = range(1,T+1)
@@ -275,17 +276,16 @@ def memory_filter_performance(memory_data: dict[str,Any],
             )
             left += w
     else:    
-        surprisals = np.sum(memory_data["surprise"], axis = 1)
-        inf_surprise_mask = surprisals == -1 
-        surprisals[inf_surprise_mask] = 40 #outside range of data
-        plt.barh(y = range(1,T+1), width = np.ravel(surprisals), color = np.where(np.ravel(surprisals) == 40, "red", "mediumturquoise"))
+        inf_surprise_mask = total_surprisals == -1 
+        total_surprisals[inf_surprise_mask] = 40 #outside range of data
+        plt.barh(y = range(1,T+1), width = np.ravel(total_surprisals), color = np.where(np.ravel(total_surprisals) == 40, "red", "mediumturquoise"))
     if stationary_entropy is not None:
         plt.axvline(x = stationary_entropy, color = "red", linestyle = "--", label = "Stationary Entropy")
     if predictive_entropy is not None:
         plt.axvline(x = predictive_entropy, color = "darkolivegreen", linestyle = "--", label = "Predictive Entropy")
     plt.title("Surprise", fontsize = 14)
     plt.ylim(0.5,T+0.5)
-    plt.xticks(range(0, int(np.max(surprisals)+1), int(np.ceil(np.max(surprisals)/5))))
+    plt.xticks(range(0, int(np.max(total_surprisals)+1), int(np.ceil(np.max(total_surprisals)/5))))
     plt.xlabel("bits")
     
     # Create a dedicated colorbar axis below the middle plot

@@ -478,7 +478,7 @@ class Short_Term_Memory(Sequence_Memory):
         if self.stationary_transition_method == "learned":
             for i in range(self.memory_capacity,self.num_hypotheses):
                 #add weight to transition from non-memory hypotheses to current memory hypothesis then renormalize
-                self.transition_predictions[i, self.timer] = self.memory_bias/self.effective_capacity
+                self.transition_predictions[i, self.timer] = self.memory_bias
                 self.transition_predictions[i,:] = self.transition_predictions[i,:] / np.sum(self.transition_predictions[i,:])
 
 
@@ -747,9 +747,10 @@ class Associative_Memory(Long_Term_Memory):
         """
         Given a percept, update world model per LTM, plus re-encode memories and update transitions.
         """
-        super().learn(percept)
         self.reencode_memories()
-        self.update_transitions()      
+        self.update_transitions() 
+        super().learn(percept)
+     
 
     def reencode_memories(self):
         """
@@ -768,5 +769,5 @@ class Associative_Memory(Long_Term_Memory):
         weighted_synapse_differences = self.reassociation_rate * (np.outer(self.last_posterior, self.belief_posterior) - self.presynaptic_activations)
         if self.stationary_transition_method == "learned":
             self.transition_predictions = self.transition_predictions + weighted_synapse_differences
-        else:
+        elif self.reassociation_rate > 0:
             print("Warning: Transition updates ignored because stationary_transition_method is not 'learned'.")
