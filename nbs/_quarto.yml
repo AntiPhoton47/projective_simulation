@@ -59,10 +59,13 @@ website:
           contents:
             - lib_nbs/ECMs/01_core.ipynb
             - lib_nbs/ECMs/02_priming.ipynb
+            - lib_nbs/ECMs/03_state_estimators.ipynb
         - section: Environments
           contents:
             - lib_nbs/envs/01_core.ipynb
             - lib_nbs/envs/foraging_envs.ipynb
+            - lib_nbs/envs/POMDPs.ipynb
+            - lib_nbs/envs/factorized_POMDPs.ipynb
 
     # Group 3 — Tutorials
     - title: Tutorials
@@ -74,6 +77,7 @@ website:
         - section: Learning PS
           contents:
             - tutorials/learning_ps/00_Introduction_to_PS.ipynb
+            - tutorials/learning_ps/01_Memory_Based_State_Estimators.ipynb
         - section: Applications
           contents:
             - tutorials/applications/foraging/02_learning_to_reset.ipynb

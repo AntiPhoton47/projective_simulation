@@ -9,9 +9,9 @@ def standard_ps_upd(reward, hmatrix, gmatrix, h_damp, g_damp):
     '''
     Given a reward, updates h-matrix and g-matrix following the standard PS update rule:
 
-    $h \leftarrow h - h_{damp}*(h-1)+ reward*g$
+    $h \\leftarrow h - h_{damp}*(h-1)+ reward*g$
     
-    $g \leftarrow (1-g_{damp})*g$   
+    $g \\leftarrow (1-g_{damp})*g$   
     '''
     
     # damping h-matrix
@@ -25,6 +25,7 @@ def standard_ps_upd(reward, hmatrix, gmatrix, h_damp, g_damp):
 
 # %% ../../nbs/lib_nbs/ECMs/01_core.ipynb 7
 from ..methods.lib_helpers import CustomABCMeta
+from typing import Any
 from abc import abstractmethod
 
 
@@ -42,7 +43,9 @@ class Abstract_ECM(metaclass = CustomABCMeta):
         pass
 
     @abstractmethod
-    def sample(self,):
+    def sample(self,
+               percept: Any
+               ) -> Any:
         """
         Performs a random walk through the ECM. Typically, this implies receiving an input percept and returning an action.
         """
