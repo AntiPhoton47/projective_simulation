@@ -23,9 +23,19 @@ def _softmax(beta, x):
 def _logistic(x, L:float = 1,k:float = 1,x_shift = 0,y_shift:float = 0):
     return [L/(1 + np.exp(-k*(xi-x_shift))) + y_shift for xi in x]
 
+<<<<<<< HEAD
 # %% ../../nbs/lib_nbs/methods/01_transforms.ipynb 4
 import numpy as np
 def decay_toward_uniform(pmfs: np.ndarray, alphas: np.ndarray) -> np.ndarray:
+=======
+# %% ../../nbs/lib_nbs/methods/01_transforms.ipynb 6
+def _exponentiated_shift(x, k, epsilon = 0.0001):
+    return (x + epsilon) ** (np.exp(-k)) / ((1 + 2*epsilon) ** (np.exp(-k)))
+
+# %% ../../nbs/lib_nbs/methods/01_transforms.ipynb 8
+import numpy as np
+def _decay_toward_uniform(pmfs: np.ndarray, alphas: np.ndarray) -> np.ndarray:
+>>>>>>> b09c3642750bedae3b65968abaa181a6411a69e2
     """
     Apply decay toward uniform distribution for each row of a batch of PMFs,
     with a potentially different alpha per column.
