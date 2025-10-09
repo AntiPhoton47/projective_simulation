@@ -19,6 +19,7 @@ def _softmax(beta, x):
 
         return softmax_x
 
+# %% ../../nbs/lib_nbs/methods/01_transforms.ipynb 4
 def _logistic(x, L:float = 1,k:float = 1,x_shift = 0,y_shift:float = 0):
     return [L/(1 + np.exp(-k*(xi-x_shift))) + y_shift for xi in x]
 
