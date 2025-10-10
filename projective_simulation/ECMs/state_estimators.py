@@ -204,6 +204,8 @@ class Bayesian_Filter(Abstract_ECM):
         one_hot_percept = np.zeros(np.sum(self.category_sizes), dtype=bool)
         one_hot_percept[np.cumsum(self.category_sizes) - self.category_sizes + self.percept] = True
         return one_hot_percept
+        
+
 
 # %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 8
 #### Sequence Memory Constructor Methods
@@ -260,6 +262,7 @@ def Initialize_Sensory_Predictions(
 
 # %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 10
 import numpy as np
+from ..methods.visualization import plot_heatmap
 
 class Sequence_Memory(Bayesian_Filter):
     """
@@ -409,7 +412,65 @@ class Sequence_Memory(Bayesian_Filter):
             for i in range(self.memory_capacity, self.num_hypotheses):
                 self.transition_predictions[i, :self.effective_capacity] = self.memory_bias/self.effective_capacity
 
-            
+    def show_sensory_predictions(self, start_hypothesis =None, stop_hypothesis=None, **kwargs):
+        """visualize sensory predictions as a heatmap"""
+        if start_hypothesis is None:
+            start_hypothesis = 1
+        if stop_hypothesis is None:
+            stop_hypothesis = self.num_hypotheses
+        ticks = np.linspace(start_hypothesis, stop_hypothesis, num=min(stop_hypothesis, 5), dtype=int)
+        default_yticks = ticks - 0.5
+        default_ytick_labels = [f"$h_{{{i}}}$" for i in ticks]
+        if stop_hypothesis == self.num_hypotheses:
+            default_ytick_labels[-1] = "$h_*$"
+        default_args = dict(
+            title = "Sensory Predictions",
+            xlabel = "Perceptual State (by category)",
+            ylabel = "Hypothesis",
+            yticks = default_yticks,
+            ytick_labels = default_ytick_labels,
+            xtick_labels = np.concatenate([range(cat_size) for cat_size in self.category_sizes]),
+            color = "Greens",
+            vmin = 0.,
+            vmax = 1.,
+            category_sizes = self.category_sizes,
+            colorbar_kwargs={"label": "P(state|hypothesis)"}
+        )
+        default_args.update(kwargs)
+        plot_heatmap(
+            self.sensory_predictions[start_hypothesis-1:stop_hypothesis, :],
+            **default_args
+        )
+
+    def show_transition_predictions(self, start_hypothesis =None, stop_hypothesis=None, **kwargs):
+        """visualize transition predictions as a heatmap"""
+        if start_hypothesis is None:
+            start_hypothesis = 1
+        if stop_hypothesis is None:
+            stop_hypothesis = self.num_hypotheses
+        ticks = np.linspace(start_hypothesis, stop_hypothesis, num=min(stop_hypothesis, 5), dtype=int)
+        default_ticks = ticks - 0.5
+        default_tick_labels = [f"$h_{{{i}}}$" for i in ticks]
+        if stop_hypothesis == self.num_hypotheses:
+            default_tick_labels[-1] = "$h_*$"
+        default_args = dict(
+            title = "Transition Predictions",
+            xlabel = "Hypothesis",
+            ylabel = "Hypothesis",
+            yticks = default_ticks,
+            ytick_labels = default_tick_labels,
+            xticks = default_ticks,
+            xtick_labels = default_tick_labels,
+            color = "Blues",
+            vmin = 0.,
+            vmax = 1.,
+            colorbar_kwargs={"label": "$P(h^{t+1}|h^t)$"}
+        )
+        default_args.update(kwargs)
+        plot_heatmap(
+            self.transition_predictions[start_hypothesis-1:stop_hypothesis, start_hypothesis-1:stop_hypothesis],
+            **default_args
+        )
 
 # %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 14
 from ..methods.transforms import decay_toward_stationary
