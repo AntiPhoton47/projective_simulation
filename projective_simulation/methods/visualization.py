@@ -77,7 +77,8 @@ def plot_heatmap(matrix: NDArray[np.float_],
                  vmax:float|None=None,                                          #maximum for heatmap colorscale
                  label_scale:float=1.0,                                         #multiplier for label sizes
                  colorbar_kwargs: dict[str,Any] | None ={},                     #arguments to pass to colorbar function
-                 category_sizes: list[int] | None = None
+                 category_sizes: list[int] | None = None,
+                 **kwargs
                 ):
     """
     Plots a heatmap of the given matrix using the intensity of a single color,
@@ -99,13 +100,10 @@ def plot_heatmap(matrix: NDArray[np.float_],
     im = ax.imshow(matrix, cmap=plt.colormaps.get_cmap(color), 
                    aspect='auto', extent=extent, vmin=vmin, vmax=vmax)
 
-    tick_fontsize = 10 * label_scale
-    label_fontsize = 12 * label_scale
-    title_fontsize = 14 * label_scale
-    
-    ax.set_title(title, fontsize=title_fontsize)
-    ax.set_xlabel(xlabel, fontsize=label_fontsize)
-    ax.set_ylabel(ylabel, fontsize=label_fontsize)
+  
+    ax.set_title(title, fontsize=kwargs.get('title_fontsize', 12* label_scale))
+    ax.set_xlabel(xlabel, fontsize=kwargs.get('label_fontsize', 12* label_scale))
+    ax.set_ylabel(ylabel, fontsize=kwargs.get('label_fontsize', 12* label_scale))
     ax.invert_yaxis()
 
     # Default xticks at centers
@@ -119,11 +117,11 @@ def plot_heatmap(matrix: NDArray[np.float_],
                 xtick_labels = [str(i+1) if i in idxs else "" for i in xticks]
             else:
                 xtick_labels = [str(i+1) for i in xticks]
-        ax.set_xticklabels(xtick_labels, fontsize=tick_fontsize)
+        ax.set_xticklabels(xtick_labels, fontsize=kwargs.get('tick_fontsize', 10* label_scale))
     else:
         ax.set_xticks(xticks)
         if xtick_labels is not None:
-            ax.set_xticklabels(xtick_labels, fontsize=tick_fontsize)
+            ax.set_xticklabels(xtick_labels, fontsize=kwargs.get('tick_fontsize', 10* label_scale))
 
     # Default yticks at centers
     if yticks is None:
@@ -136,11 +134,11 @@ def plot_heatmap(matrix: NDArray[np.float_],
                 ytick_labels = [str(i+1) if i in idxs else "" for i in yticks]
             else:
                 ytick_labels = [str(i+1) for i in yticks]
-        ax.set_yticklabels(ytick_labels, fontsize=tick_fontsize)
+        ax.set_yticklabels(ytick_labels, fontsize=kwargs.get('tick_fontsize', 10* label_scale))
     else:
         ax.set_yticks(yticks)
         if ytick_labels is not None:
-            ax.set_yticklabels(ytick_labels, fontsize=tick_fontsize)
+            ax.set_yticklabels(ytick_labels, fontsize=kwargs.get('tick_fontsize', 10* label_scale))
     
     # Add category h-lines
     if not category_sizes is None:
@@ -216,7 +214,8 @@ def plot_percepts(
     figsize=(2, 8), 
     tick_fontsize=10, 
     label_fontsize=12, 
-    title_fontsize=14, 
+    title_fontsize=14,
+    title="Percepts", 
     xticks=None, 
     xtick_labels=None, 
     yticks=None, 
@@ -236,12 +235,12 @@ def plot_percepts(
     extent = (0, n_percept_features, T, 0)  # left, right, bottom, top
 
     if colormap is None:
-        ax.imshow(percepts, aspect="auto", interpolation='nearest', extent=extent, **imshow_kwargs)
+        ax.imshow(percepts, aspect="auto", interpolation='nearest', extent=extent,**imshow_kwargs)
     else:
         cmap = ListedColormap(colormap)
-        ax.imshow(percepts, cmap=cmap, aspect="auto", interpolation='nearest', vmin=0, vmax=len(colormap)-1, extent=extent, **imshow_kwargs)
+        ax.imshow(percepts, cmap=cmap, aspect="auto", interpolation='nearest', vmin=0, vmax=len(colormap)-1, extent=extent,**imshow_kwargs)
 
-    ax.set_title("Percepts", fontsize=title_fontsize)
+    ax.set_title(title, fontsize=title_fontsize)
     ax.set_ylabel("Time Step", fontsize=label_fontsize)
     ax.invert_yaxis()
 
@@ -274,7 +273,7 @@ def plot_percepts(
     else:
         return ax
 
-# %% ../../nbs/lib_nbs/methods/03_visualizations.ipynb 11
+# %% ../../nbs/lib_nbs/methods/03_visualizations.ipynb 12
 def plot_surprise_bar(
     surprise, 
     T, 
@@ -285,12 +284,14 @@ def plot_surprise_bar(
     yticks=None, 
     ytick_labels=None,
     stacked=False,
-    tick_fontsize=10, 
-    **barh_kwargs
+    barh_kwargs = None,
+    **kwargs
 ):
     """
     Plot the surprise bar plot for memory filter performance.
     """
+    if barh_kwargs is None:
+        barh_kwargs = {}
     if ax is None:
         fig, ax = plt.subplots(figsize=(4, 8))
         show = True
@@ -315,7 +316,7 @@ def plot_surprise_bar(
         ax.axvline(x=stationary_entropy, color="red", linestyle="--", label="Stationary Entropy")
     if predictive_entropy is not None:
         ax.axvline(x=predictive_entropy, color="darkolivegreen", linestyle="--", label="Predictive Entropy")
-    ax.set_title("Surprise", fontsize=14)
+    ax.set_title(kwargs.get("title","Surprise"), fontsize=kwargs.get("title_fontsize",14))
     ax.set_ylim(0.5, T+0.5)
     if yticks is None:
         yticks = np.arange(T) + 1
@@ -327,12 +328,12 @@ def plot_surprise_bar(
                 ytick_labels = [str(i) if i in idxs else "" for i in yticks]
             else:
                 ytick_labels = [str(i) for i in yticks]
-        ax.set_yticklabels(ytick_labels, fontsize=tick_fontsize)
+        ax.set_yticklabels(ytick_labels, fontsize=kwargs.get('tick_fontsize',10))
     else:
         ax.set_yticks(yticks)
         if ytick_labels is not None:
-            ax.set_yticklabels(ytick_labels, fontsize=tick_fontsize)
-    ax.set_xlabel("bits")
+            ax.set_yticklabels(ytick_labels, fontsize=kwargs.get('tick_fontsize',10))
+    ax.set_xlabel(kwargs.get('xlabel',"bits"))
 
     # Set xticks: 0, center, max+margin (including stationary_entropy if given)
     max_val = np.max(total_surprisals)
@@ -340,14 +341,15 @@ def plot_surprise_bar(
         max_val = max(max_val, stationary_entropy)
     margin = 0.05 * max_val if max_val > 0 else 1
     xticks = [0, max_val / 2, max_val + margin]
+    xticks = kwargs.get("xticks",xticks)
     ax.set_xticks(xticks)
-    ax.set_xticklabels([f"{x:.1f}" for x in xticks])
+    ax.set_xticklabels([f"{x:.1f}" for x in xticks], fontsize=kwargs.get('tick_fontsize',10))
     if show:
         plt.show()
     else:
         return ax
 
-# %% ../../nbs/lib_nbs/methods/03_visualizations.ipynb 12
+# %% ../../nbs/lib_nbs/methods/03_visualizations.ipynb 13
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -413,7 +415,7 @@ def memory_filter_performance(memory_data: dict[str,Any],
         predictive_entropy=predictive_entropy,
         bar_colors=bar_colors,
         stacked=stacked,
-        **surprise_kwargs
+        barh_kwargs=surprise_kwargs
     )
 
     # Colorbar axis below the middle plot

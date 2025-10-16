@@ -580,6 +580,10 @@ def sigmoid_fading_rate(
 
     assert np.shape(sensor_state_probabilities) == np.shape(centers), "a sigmoid center must be given for each probability for which a fading rate is to be derived"
 
+    if gamma == 0.:
+        return np.zeros_like(sensor_state_probabilities)
+    if gamma == 1.:
+        return np.ones_like(sensor_state_probabilities)
     skew = np.log(gamma/(1-gamma))/np.log(log_base) #sets rate to gamma when logistic component is 0 (i.e. at sigmoid center)
     shift = 2*(sensor_state_probabilities - centers) #centers sigmoid
     scale = -np.log(1-sigma)/np.log(log_base) #slope of sigmoid
@@ -706,6 +710,8 @@ class Long_Term_Memory(Short_Term_Memory):
         Compute the fading rates for the current memory trace using the selected fading_rate_method.
         """
         if self.fading_rate_method == "sigmoid":
+            if self.fading_rate in [0., 1.] and self.surprise_factor > 0.:
+                print("Warning: fading_rate of 0 or 1 will override the effect of surprise_factor when using sigmoid fading_rate_method")
             fading_rates = sigmoid_fading_rate(
                 gamma=self.fading_rate,
                 sigma=self.surprise_factor,
