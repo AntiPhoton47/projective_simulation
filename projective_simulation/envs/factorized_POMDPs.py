@@ -647,6 +647,7 @@ class Series_Recognition_Probe(List_Sequencer):
                       probe_cue_duration: int = 2,
                       num_series: int = 3,
                       probe_position: int = -1,
+                      reuse_items = True,
                       master_seed: Optional[int] = None,  # seed that deterministically produces per-sim child seeds
                       return_instances: bool = False,     # if False, return records with constructor_kwargs (+ arrays)
                       include_arrays: bool = True         # if returning records, include realized arrays (percepts, used items, probe)
