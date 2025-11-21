@@ -382,15 +382,17 @@ def memory_filter_performance(memory_data: dict[str,Any],
 
     # Middle plot (Posterior Belief)
     num_hypotheses = np.shape(memory_data["belief_posterior"])[1]
-    hypothesis_ticks = np.arange(num_hypotheses) + 0.5
-    hypothesis_tick_labels = kwargs.get("hypothesis_labels", None)
-    if hypothesis_tick_labels is None:
+    if not "xticks" in heatmap_kwargs.keys():        
+        heatmap_kwargs["xticks"] = np.arange(num_hypotheses) + 0.5
+    
+    if not "xtick_labels" in heatmap_kwargs.keys():
         if num_hypotheses > 10:
             idxs = np.linspace(0, num_hypotheses - 1, num=5, dtype=int)
             hypothesis_tick_labels = [f'$h_{{{i}}}$' if i in idxs else "" for i in range(num_hypotheses)]
         else:
             hypothesis_tick_labels = [f'$h_{{{i}}}$' for i in range(num_hypotheses)]
-    hypothesis_tick_labels[-1] = "$h_{*}$"
+        hypothesis_tick_labels[-1] = "$h_{*}$"
+        heatmap_kwargs["xtick_labels"] = hypothesis_tick_labels
 
     im = plot_heatmap(
         memory_data["belief_posterior"],
@@ -398,8 +400,6 @@ def memory_filter_performance(memory_data: dict[str,Any],
         title=title,
         color="Oranges",
         xlabel="Hypothesis",
-        xticks=hypothesis_ticks,
-        xtick_labels=hypothesis_tick_labels,
         ylabel=None,
         figsize=(8, 10),
         colorbar_kwargs=None,
