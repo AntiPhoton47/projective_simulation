@@ -333,6 +333,8 @@ def plot_surprise_bar(
         ax.set_yticks(yticks)
         if ytick_labels is not None:
             ax.set_yticklabels(ytick_labels, fontsize=kwargs.get('tick_fontsize',10))
+    if 'ytick_overide' in kwargs:
+        ax.set_yticklabels(kwargs.get('ytick_overide'))
     ax.set_xlabel(kwargs.get('xlabel',"bits"))
 
     # Set xticks: 0, center, max+margin (including stationary_entropy if given)
@@ -366,6 +368,7 @@ def memory_filter_performance(memory_data: dict[str,Any],
                              heatmap_kwargs: dict[str,Any] = {},
                              surprise_kwargs: dict[str,Any] = {},
                              **kwargs):
+    
     T = np.shape(observed_percepts)[0]
     fig = plt.figure(figsize=(8, 6))
     nrows, ncols = 2, 3
@@ -407,6 +410,15 @@ def memory_filter_performance(memory_data: dict[str,Any],
     )
 
     # Right Plot (Surprise)
+    yticks = surprise_kwargs.get("yticks", None)
+    ytick_labels = surprise_kwargs.get("ytick_labels", None)
+    ytick_overide = surprise_kwargs.get("ytick_overide", False)
+    if "yticks" in surprise_kwargs:
+        del surprise_kwargs["yticks"]
+    if "ytick_labels" in surprise_kwargs:
+        del surprise_kwargs["ytick_labels"]
+    if "ytick_overide" in surprise_kwargs:
+        del surprise_kwargs["ytick_overide"]
     plot_surprise_bar(
         memory_data["surprise"],
         T,
@@ -415,8 +427,12 @@ def memory_filter_performance(memory_data: dict[str,Any],
         predictive_entropy=predictive_entropy,
         bar_colors=bar_colors,
         stacked=stacked,
+        yticks=yticks,
+        ytick_labels=ytick_labels,
         barh_kwargs=surprise_kwargs
     )
+    if ytick_overide:
+        axes_array[0,2].set_yticks([])
 
     # Colorbar axis below the middle plot
     cax = fig.add_subplot(gs[1, 1])
