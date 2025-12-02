@@ -680,9 +680,10 @@ class Long_Term_Memory(Short_Term_Memory):
         Encode the current percept into memory, updating sensory and transition predictions.
         Sets the initial fading rates of each category in the new memory.
         """
-        super().encode_memory(percept)
         if not self.effective_capacity == self.memory_capacity or not self.capacity_overflow_method == "stop encoding":
             self.memory_fade[self.next_trace, :] = self.get_fading_rates()
+        super().encode_memory(percept)
+
 
 
     def get_fading_rates(self):
