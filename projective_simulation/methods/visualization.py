@@ -364,10 +364,16 @@ def memory_filter_performance(memory_data: dict[str,Any],
                              stacked: bool = False,
                              bar_colors: list[str]|None = None,
                              title: str = "Posterior Belief",
-                             percept_kwargs: dict[str,Any] = {},
-                             heatmap_kwargs: dict[str,Any] = {},
-                             surprise_kwargs: dict[str,Any] = {},
+                             percept_kwargs: dict[str,Any] = None,
+                             heatmap_kwargs: dict[str,Any] = None,
+                             surprise_kwargs: dict[str,Any] = None,
                              **kwargs):
+    if percept_kwargs is None:
+        percept_kwargs = {}
+    if heatmap_kwargs is None:                       
+        heatmap_kwargs = {} 
+    if surprise_kwargs is None:
+        surprise_kwargs = {}                         
     
     T = np.shape(observed_percepts)[0]
     fig = plt.figure(figsize=(8, 6))
@@ -390,10 +396,10 @@ def memory_filter_performance(memory_data: dict[str,Any],
     
     if not "xtick_labels" in heatmap_kwargs.keys():
         if num_hypotheses > 10:
-            idxs = np.linspace(0, num_hypotheses - 1, num=5, dtype=int)
-            hypothesis_tick_labels = [f'$h_{{{i}}}$' if i in idxs else "" for i in range(num_hypotheses)]
+            idxs = np.linspace(0, num_hypotheses-1, num=5, dtype=int)
+            hypothesis_tick_labels = [f'$h_{{{i+1}}}$' if i in idxs else "" for i in range(num_hypotheses)]
         else:
-            hypothesis_tick_labels = [f'$h_{{{i}}}$' for i in range(num_hypotheses)]
+            hypothesis_tick_labels = [f'$h_{{{i+1}}}$' for i in range(num_hypotheses)]
         hypothesis_tick_labels[-1] = "$h_{*}$"
         heatmap_kwargs["xtick_labels"] = hypothesis_tick_labels
 

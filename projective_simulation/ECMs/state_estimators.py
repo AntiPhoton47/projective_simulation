@@ -222,21 +222,14 @@ def Initialize_Memory_Based_Transition_Matrix(
     """
     transition_predictions = np.zeros((num_hypotheses, num_hypotheses))
     # Fill the shifted diagonal for memory hypotheses (i.e., each i transitions to i+1, last to first)
-    for i in range(memory_capacity):
+    for i in range(memory_capacity-1):
         transition_predictions[i, (i + 1) % memory_capacity] = 1.0
 
-    if capacity_overflow_method == "stop encoding" or stationary_transition_method == "learned":
-        transition_predictions[memory_capacity - 1, 0] = 0
-        for i in range(memory_capacity, num_hypotheses):
-            transition_predictions[i, i] = 1 - memory_bias
-            transition_predictions[i, 0] = memory_bias
-            transition_predictions[memory_capacity - 1, i] = 1 / (num_hypotheses - memory_capacity)
-    elif capacity_overflow_method == "loop":
-        for i in range(memory_capacity, num_hypotheses):
-            transition_predictions[i, i] = 1 - memory_bias
-            transition_predictions[i, 0] = memory_bias
-    else:
-        raise ValueError(f'{capacity_overflow_method} is not a valid capacity overflow method')
+
+    for i in range(memory_capacity, num_hypotheses):
+        transition_predictions[i, i] = 1 - memory_bias
+        transition_predictions[i, 0] = memory_bias
+        transition_predictions[memory_capacity - 1, i] = 1 / (num_hypotheses - memory_capacity)
 
     return transition_predictions
 
@@ -279,7 +272,7 @@ class Sequence_Memory(Bayesian_Filter):
         sensory_predictions: NDArray[np.float_] = None,                                  #Sensory hypotheses matrix. If None, initialized to uniform.
         belief_prior: NDArray[np.float_] = None,                                         #Initial belief priors. If None, all prior on non-memory hypothesis.
         transition_predictions: NDArray[np.float_] = None,                               #Hypothesis transition matrix.
-        timer: int = 0,                                                                  #Starting memory time index.
+        next_trace: int = 0,                                                             #Starting memory index. 0 means no memory traces encoded yet.
         capacity_overflow_method: str="stop encoding",                                   #'loop' or 'stop encoding'.
         data_record: list[str] = [],                                                     #List of variable names to log each time step. Accepts "all".
         record_until: int = -1,                                                          #Number of steps to prepare for data logging. Negative disables recording.
@@ -293,8 +286,8 @@ class Sequence_Memory(Bayesian_Filter):
         self.memory_bias = memory_bias
         self.capacity_overflow_method = capacity_overflow_method
         self.num_non_memory_hypotheses = 1 #hard-coded for now to represent single stationary hypothesis, but flexbility exists to handle multiple non-memory hypotheses
-        self.timer = timer
-        self.effective_capacity = min(self.timer, self.memory_capacity)
+        self.next_trace = next_trace
+        self.effective_capacity = min(self.next_trace, self.memory_capacity)
         self.stationary_transition_method = stationary_transition_method
 
         num_hypotheses = self.num_non_memory_hypotheses + self.memory_capacity
@@ -349,16 +342,6 @@ class Sequence_Memory(Bayesian_Filter):
                 raise ValueError("Prior belief assigned to unencoded memory slot.")
             if np.sum(self.belief_posterior[self.effective_capacity:self.memory_capacity]) > 1e-9:
                 raise ValueError("Posterior belief assigned to unencoded memory slot.")
-
-    def sample(self,
-               percept: NDArray[np.int_], #Values represent the state of each sensor. Values >0 and upper bounded by self.category_sizes
-               ) -> NDArray[np.float_]:
-        """
-        Given a percept; update belief state, update world model, predict next sensor states.
-        """
-        super().sample(percept)
-        self.timer = (self.timer + 1) % self.memory_capacity
-        return self.sensory_expectation
     
     def learn(self, 
               percept:NDArray[np.int_]|None  = None
@@ -370,21 +353,8 @@ class Sequence_Memory(Bayesian_Filter):
             percept = self.percept
         if self.effective_capacity < self.memory_capacity or not self.capacity_overflow_method == "stop encoding":
             # if last memory slot filled and looping, update transition matrix to loop and decouple non-memory hypotheses
-            if self.effective_capacity + 1 == self.memory_capacity:
-                self.capacity_reached()
             self.encode_memory()
         self._check_memory_structure()
-
-    def capacity_reached(self):
-        """
-        Handle encoding of last memory hypothesis when memory capacity is reached.
-        """
-        if self.capacity_overflow_method == "loop":
-            self.transition_predictions[self.effective_capacity, :] = 0
-            self.transition_predictions[self.effective_capacity, 0] = 1
-            for i in range(self.memory_capacity, self.num_hypotheses):
-                self.transition_predictions[i, i] = 1
-                self.transition_predictions[i, 0] = 0   
 
     def encode_memory(self, 
                       percept:NDArray[np.int_]|None = None):
@@ -398,19 +368,12 @@ class Sequence_Memory(Bayesian_Filter):
             percept = self.percept    
 
         categorical_encoding = self.get_one_hot_percept(percept).astype(float)
-        self.sensory_predictions[self.timer, :] = categorical_encoding
+        #overwrite memory trace with new encoding
+        self.sensory_predictions[self.next_trace, :] = categorical_encoding
 
-        if self.stationary_transition_method == "first" and self.capacity_overflow_method == 'loop':
-            for i in range(self.memory_capacity, self.num_hypotheses):
-                #check if overwritten trace was oldest and update stationary transition probability to new oldest trace
-                if self.transition_predictions[i,self.timer] > 0.:
-                    self.transition_predictions[i,self.timer] = 0
-                    new_oldest = self.timer + 1 % self.effective_capacity
-                    self.transition_predictions[i,new_oldest] = self.memory_bias
-
-        if self.stationary_transition_method == "encoded":
-            for i in range(self.memory_capacity, self.num_hypotheses):
-                self.transition_predictions[i, :self.effective_capacity] = self.memory_bias/self.effective_capacity
+        if self.capacity_overflow_method == "stop encoding":
+            #for other overflow methods, updating the next trace must be handled by the encode_memory method of the child class that introduces that method
+            self.next_trace = (self.next_trace + 1) % self.memory_capacity
 
     def show_sensory_predictions(self, start_hypothesis =None, stop_hypothesis=None, **kwargs):
         """visualize sensory predictions as a heatmap"""
@@ -472,7 +435,7 @@ class Sequence_Memory(Bayesian_Filter):
             **default_args
         )
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 14
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 16
 from ..methods.transforms import decay_toward_stationary
 
 class Short_Term_Memory(Sequence_Memory):
@@ -491,7 +454,7 @@ class Short_Term_Memory(Sequence_Memory):
         sensory_predictions: NDArray[np.float_] = None,               #Optional sensory-to-memory weight matrix.
         belief_prior: NDArray[np.float_] = None,                      #Optional 1d array of prior expectations on memories.
         transition_predictions: NDArray[np.float_] = None,            #Optional memory transition matrix.
-        timer: int = 0,                                             #Starting memory time index.
+        next_trace: int = 0,                                         #Starting memory index. 0 indicates no memories encoded.
         data_record: list[str] = [],                                #List of variable names to record each time step. Accepts "all".
         record_until: int = -1,                                     #Number of steps to prepare for data recording. Negative disables recording.
         capacity_overflow_method:str="loop",                        #'loop' or 'stop encoding'.
@@ -508,7 +471,7 @@ class Short_Term_Memory(Sequence_Memory):
             sensory_predictions=sensory_predictions,
             belief_prior=belief_prior,
             transition_predictions=transition_predictions,
-            timer=timer,
+            next_trace=next_trace,
             data_record=data_record,
             record_until=record_until,
             capacity_overflow_method=capacity_overflow_method
@@ -517,9 +480,9 @@ class Short_Term_Memory(Sequence_Memory):
         self.stationary_transition_method = stationary_transition_method
 
         if self.stationary_transition_method == "encoded" and transition_predictions is None:
-            for i in range(self.memory_capacity, np.shape(self.transition_predictions)[0]):
+            for i in range(self.memory_capacity, np.shape(self.transition_predictions)[0]): #set non-memory hypothesis transitions
                 self.transition_predictions[i, i] = 1 - self.memory_bias
-                self.transition_predictions[i, self.timer] = self.memory_bias
+                self.transition_predictions[i, 0] = self.memory_bias #if no memories encoded, bias goes to stationary hypothesis
 
     def learn(self, 
               percept:NDArray[np.int_]|None = None
@@ -529,6 +492,7 @@ class Short_Term_Memory(Sequence_Memory):
         """        
         super().learn(percept)
         self.fade()
+        self.prepare_new_trace()
 
     def encode_memory(self, percept:NDArray[np.int_]|None=None):
         """
@@ -536,25 +500,17 @@ class Short_Term_Memory(Sequence_Memory):
         Handles schematic transition methods and capacity overflow.
         """
         super().encode_memory(percept)
-        if self.stationary_transition_method == "learned":
-            for i in range(self.memory_capacity,self.num_hypotheses):
-                #add weight to transition from non-memory hypotheses to current memory hypothesis then renormalize
-                self.transition_predictions[i, self.timer] = self.memory_bias
-                self.transition_predictions[i,:] = self.transition_predictions[i,:] / np.sum(self.transition_predictions[i,:])
+        if self.stationary_transition_method == "encoded":
+            for i in range(self.memory_capacity, self.num_hypotheses):
+                #min function used below because one memory trace always needs to be reserved for next percept
+                #the added probability will be removed from the reserved trace in the prepare_next_trace function, keeping the transition probabilities normalized
+                self.transition_predictions[i, :self.effective_capacity] = self.memory_bias/np.min([self.effective_capacity, self.memory_capacity - 1]) 
+        # if self.stationary_transition_method == "learned":
+        #     for i in range(self.memory_capacity,self.num_hypotheses):
+        #         #add weight to transition from non-memory hypotheses to current memory hypothesis then renormalize
+        #         self.transition_predictions[i, self.last_trace] = self.memory_bias
+        #         self.transition_predictions[i,:] = self.transition_predictions[i,:] / np.sum(self.transition_predictions[i,:])
 
-
-    def capacity_reached(self):
-        """
-        Handle encoding of last memory hypothesis when memory capacity is reached.
-        Overwrites method from Sequence Memory to handle schematic transition methods.
-        """
-        if self.capacity_overflow_method == "loop":
-            self.transition_predictions[self.effective_capacity, :] = 0.
-            self.transition_predictions[self.effective_capacity, 0] = 1.
-            if not self.stationary_transition_method == "encoded":
-                for i in range(self.memory_capacity, self.num_hypotheses):
-                    self.transition_predictions[i, i] = 1.
-                    self.transition_predictions[i, 0] = 0.
 
     def fade(self):
         """
@@ -568,7 +524,37 @@ class Short_Term_Memory(Sequence_Memory):
             )
             self.sensory_predictions[:self.memory_capacity, self.category_indexer == i] = faded_memories
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 20
+    def prepare_new_trace(self):
+        #prepare trace for next time step
+        current_trace = self.next_trace
+        if self.capacity_overflow_method == "decay_based":
+            #get kullback-leibler divergence between each memory trace and stationary hypothesis
+            kl_divergences = np.zeros(self.memory_capacity)
+            for i in range(self.memory_capacity):
+                kl_divergences[i] = np.sum(
+                    self.sensory_predictions[i, :] * np.log(
+                        self.sensory_predictions[i, :] / self.sensory_predictions[-1, :] #-1 is stationary hypothesis
+                    )
+                )
+            #find memory trace with lowest divergence to stationary hypothesis
+            self.next_trace = np.min(np.argmin(kl_divergences)) #in case of ties, take first
+        elif self.capacity_overflow_method != "stop encoding":
+            #if capacity overflow method is 'learned', this updated is handled by the sequence memory parent class
+            self.next_trace = (current_trace + 1) % self.memory_capacity
+        
+        #prepare transition probabilities to new next trace
+        if self.capacity_overflow_method != "stop encoding":
+            if self.stationary_transition_method == "encoded":
+                self.transition_predictions[-1,self.next_trace] = 0 #removes memory bias added to transition to this trace
+            for i in range(self.num_hypotheses):
+                p_prepared_trace = self.transition_predictions[i,self.next_trace] #transitions to newly prepared trace will be forgotten by transferring them to h*
+                self.transition_predictions[i,-1] = self.transition_predictions[i,-1] + p_prepared_trace
+                self.transition_predictions[i,self.next_trace] = 0
+                if i == current_trace:
+                    self.transition_predictions[i,:] = 0
+                    self.transition_predictions[i, self.next_trace] = 1
+
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 23
 ## Fading Rate Encoders for Long-Term Memory
 def sigmoid_fading_rate(
         gamma: float,                                   #default fading rate
@@ -609,7 +595,7 @@ def surprise_advantage_fading_rate(
     fading_rates = gamma ** (log_base ** (sigma * surprise_gaps))
     return(fading_rates)
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 21
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 24
 class Long_Term_Memory(Short_Term_Memory):
     """
     Long_Term_Memory extends Short_Term_Memory by introducing surprise-modulated memory fading and memory stabilization.
@@ -628,7 +614,7 @@ class Long_Term_Memory(Short_Term_Memory):
         sensory_predictions: NDArray[np.float_] = None,     #Optional sensory-to-memory weight matrix.
         belief_prior: NDArray[np.float_] = None,            #Optional 1d array of prior expectations on memories.
         transition_predictions: NDArray[np.float_] = None,  #Optional memory transition matrix.
-        timer: int = 0,                                 # Starting memory time index.
+        next_trace: int = 0,                                 # Starting memory time index. 0 indicates no memories encoded.
         data_record: list[str] = [],                    #List of variable names to record each time step. Accepts "all".
         record_until: int = -1,                         #Number of steps to prepare for data recording. Negative disables recording.
         fading_rate_method:str = "sigmoid",             #Method for computing fading rates ("sigmoid" or "surprise_advantage").
@@ -647,7 +633,7 @@ class Long_Term_Memory(Short_Term_Memory):
             sensory_predictions=sensory_predictions,
             belief_prior=belief_prior,
             transition_predictions=transition_predictions,
-            timer=timer,
+            next_trace=next_trace,
             data_record=data_record,
             record_until=record_until,
             capacity_overflow_method=capacity_overflow_method,
@@ -696,14 +682,8 @@ class Long_Term_Memory(Short_Term_Memory):
         """
         super().encode_memory(percept)
         if not self.effective_capacity == self.memory_capacity or not self.capacity_overflow_method == "stop encoding":
-            self.memory_fade[self.timer, :] = self.get_fading_rates()
+            self.memory_fade[self.next_trace, :] = self.get_fading_rates()
 
-    def capacity_reached(self):
-        """
-        Handle encoding of last memory hypothesis when memory capacity is reached.
-        """
-        super().capacity_reached()
-        self.memory_fade[self.timer, :] = self.get_fading_rates()
 
     def get_fading_rates(self):
         """
@@ -733,7 +713,7 @@ class Long_Term_Memory(Short_Term_Memory):
         return fading_rates
 
 
-# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 27
+# %% ../../nbs/lib_nbs/ECMs/03_state_estimators.ipynb 31
 class Associative_Memory(Long_Term_Memory):
     """
     Associative_Memory extends Long_Term_Memory by introducing learning and re-encoding mechanisms.
@@ -754,7 +734,7 @@ class Associative_Memory(Long_Term_Memory):
         sensory_predictions: NDArray[np.float_] = None,     #Optional sensory-to-memory weight matrix.
         belief_prior: NDArray[np.float_] = None,            #Optional 1d array of prior expectations on memories.
         transition_predictions: NDArray[np.float_] = None,  #Optional memory transition matrix.
-        timer: int = 0,                                     #Starting memory time index.
+        next_trace: int = 0,                                     #Starting memory time index. 0 indicated no memories encoded
         data_record: list[str] = [],                        #List of variable names to record each time step. Accepts "all".
         record_until: int = -1,                             #Number of steps to prepare for data recording. Negative disables recording.
         fading_rate_method: str = "sigmoid",                #Method for computing fading rates ("sigmoid" or "surprise_advantage").
@@ -784,7 +764,7 @@ class Associative_Memory(Long_Term_Memory):
             consolidation_rate=consolidation_rate,
             belief_prior=belief_prior,
             transition_predictions=transition_predictions,
-            timer=timer,
+            next_trace=next_trace,
             data_record=data_record,
             record_until=record_until,
             fading_rate_method=fading_rate_method,
@@ -824,7 +804,7 @@ class Associative_Memory(Long_Term_Memory):
         Re-encode memory traces by mixing old encoding with new encoding according to reactivation strength.
         """
         categorical_encoding = self.get_one_hot_percept(self.percept).astype(float)
-        for i in range(self.timer):
+        for i in range(self.effective_capacity):
             reencoding_strength = self.reencoding_rate * self.belief_posterior[i]
             reencoded_memory = reencoding_strength * categorical_encoding + (1 - reencoding_strength) * self.sensory_predictions[i, :]
             self.sensory_predictions[i, :] = reencoded_memory
