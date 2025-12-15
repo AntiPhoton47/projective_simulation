@@ -571,7 +571,7 @@ def sigmoid_fading_rate(
     if gamma == 1.:
         return np.ones_like(sensor_state_probabilities)
     skew = np.log(gamma/(1-gamma))/np.log(log_base) #sets rate to gamma when logistic component is 0 (i.e. at sigmoid center)
-    shift = 2*(sensor_state_probabilities - centers) #centers sigmoid
+    shift = (sensor_state_probabilities - centers) #centers sigmoid
     scale = -np.log(1-sigma)/np.log(log_base) #slope of sigmoid
 
     x = skew + scale * shift
@@ -817,9 +817,6 @@ class Associative_Memory(Long_Term_Memory):
         weighted_synapse_differences = self.reassociation_rate * (np.outer(self.last_posterior, self.belief_posterior) - self.presynaptic_activations)
         if self.stationary_transition_method == "learned":
             self.transition_predictions = self.transition_predictions + weighted_synapse_differences
-            alpha = self.belief_posterior[-1] * self.transition_predictions[-1,-1] / self.memory_capacity #a portion of the stationary hypothesis' self transition will get reassigned to newly encoded trace
-            self.transition_predictions[-1,self.next_trace] = self.transition_predictions[-1,self.next_trace] + alpha
-            self.transition_predictions[-1,-1] = self.transition_predictions[-1,-1] - alpha
 
         elif self.reassociation_rate > 0:
             print("Warning: Transition updates ignored because stationary_transition_method is not 'learned'.")
