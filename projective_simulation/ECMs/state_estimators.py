@@ -202,7 +202,7 @@ class Bayesian_Filter(Abstract_ECM):
         if percept is None:
             percept = self.percept
         one_hot_percept = np.zeros(np.sum(self.category_sizes), dtype=bool)
-        one_hot_percept[np.cumsum(self.category_sizes) - self.category_sizes + self.percept] = True
+        one_hot_percept[np.cumsum(self.category_sizes) - self.category_sizes + percept] = True
         return one_hot_percept
         
 
@@ -739,7 +739,7 @@ class Associative_Memory(Long_Term_Memory):
         data_record: list[str] = [],                        #List of variable names to record each time step. Accepts "all".
         record_until: int = -1,                             #Number of steps to prepare for data recording. Negative disables recording.
         fading_rate_method: str = "sigmoid",                #Method for computing fading rates ("sigmoid" or "surprise_advantage").
-        capacity_overflow_method: str = "stop encoding",    #'loop' or 'stop encoding'.
+        capacity_overflow_method: str = "decay_based",    #'loop', 'stop encoding', or decay_based.
         stationary_transition_method: str = "learned"        #'encoded', 'first', or 'learned'.
     ):
         """
@@ -817,6 +817,8 @@ class Associative_Memory(Long_Term_Memory):
         weighted_synapse_differences = self.reassociation_rate * (np.outer(self.last_posterior, self.belief_posterior) - self.presynaptic_activations)
         if self.stationary_transition_method == "learned":
             self.transition_predictions = self.transition_predictions + weighted_synapse_differences
+            self.transition_predictions[-1,self.next_trace] = self.memory_bias #add memory bias to transition from h_* to next trace
+            self.transition_predictions[-1,:] = self.transition_predictions[-1,:] / np.sum(self.transition_predictions[-1,:]) #renormalize transitions from h_*
 
         elif self.reassociation_rate > 0:
             print("Warning: Transition updates ignored because stationary_transition_method is not 'learned'.")
