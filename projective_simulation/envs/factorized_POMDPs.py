@@ -412,6 +412,7 @@ class List_Sequencer(Factorized_POMDP):
                       stimulus_duration: int,
                       mean_timeout_interval: float = 4.0,
                       var_time_out_interval: float = 2.0,
+                      reuse_items: bool = True,
                       num_series: int = 3,
                       master_seed: Optional[int] = None,  # seed that deterministically produces per-sim child seeds
                       return_instances: bool = False,     # if False, return records with constructor_kwargs (+ arrays)
@@ -437,6 +438,7 @@ class List_Sequencer(Factorized_POMDP):
                         mean_timeout_interval=mean_timeout_interval,
                         var_time_out_interval=var_time_out_interval,
                         num_series=num_series,
+                        reuse_items=reuse_items,
                         seed=s)
                 )
             else:
@@ -447,6 +449,7 @@ class List_Sequencer(Factorized_POMDP):
                            mean_timeout_interval=mean_timeout_interval,
                            var_time_out_interval=var_time_out_interval,
                            num_series=num_series,
+                           reuse_items=reuse_items,
                            seed=s)
                 out.append(inst.to_record(include_arrays=include_arrays))
         return out
@@ -644,6 +647,7 @@ class Series_Recognition_Probe(List_Sequencer):
                       probe_cue_duration: int = 2,
                       num_series: int = 3,
                       probe_position: int = -1,
+                      reuse_items = True,
                       master_seed: Optional[int] = None,  # seed that deterministically produces per-sim child seeds
                       return_instances: bool = False,     # if False, return records with constructor_kwargs (+ arrays)
                       include_arrays: bool = True         # if returning records, include realized arrays (percepts, used items, probe)
