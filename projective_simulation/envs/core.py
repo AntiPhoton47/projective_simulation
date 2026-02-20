@@ -36,7 +36,7 @@ class Abstract_Env(ABC):
         """
         raise NotImplementedError
 
-# %% ../../nbs/lib_nbs/envs/01_core.ipynb 10
+# %% ../../nbs/lib_nbs/envs/01_core.ipynb 7
 class Invader_Game_Env(Abstract_Env):
     def __init__(self, 
                  state = None, 
@@ -83,7 +83,7 @@ class Invader_Game_Env(Abstract_Env):
             else:
                 return 0
 
-# %% ../../nbs/lib_nbs/envs/01_core.ipynb 12
+# %% ../../nbs/lib_nbs/envs/01_core.ipynb 9
 class Grid_World_Env(Abstract_Env):
 
     def __init__(self, 
