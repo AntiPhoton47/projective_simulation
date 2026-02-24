@@ -115,7 +115,7 @@ def decay_toward_stationary(pmfs: NDArray[np.float_],                      #Arra
     new_pmfs = (1.0 - gammas) * pmfs + gammas * sd
     return new_pmfs
 
-# %% ../../nbs/lib_nbs/methods/01_transforms.ipynb 17
+# %% ../../nbs/lib_nbs/methods/01_transforms.ipynb 16
 def _logit_bias(rate, bias):
     if isinstance(rate, np.ndarray):
         assert np.issubdtype(rate.dtype, np.floating)
@@ -146,7 +146,7 @@ def _logit_bias(rate, bias):
     new_rate[~mask] = 1/(1 + 2**-new_rate[~mask]) #reverse sigmoid
     return new_rate    
 
-# %% ../../nbs/lib_nbs/methods/01_transforms.ipynb 22
+# %% ../../nbs/lib_nbs/methods/01_transforms.ipynb 21
 def uniquify_percept_categories(percepts: np.ndarray, category_sizes: list) -> np.ndarray:
     """
     Given an array of percepts, shift the values so that they are unique across different categories.
