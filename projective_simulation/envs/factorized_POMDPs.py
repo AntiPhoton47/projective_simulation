@@ -16,8 +16,8 @@ class Factorized_POMDP(Abstract_Env):
     '''
     def __init__(self,
                 percept_category_sizes: list[int],                      #list of sizes of each percept category
-                factorized_observation_function: NDArray[np.float_],    #An NxM array, where N is the number of env states and M = sum(percept_category_sizes)
-                transition_function: NDArray[np.float_],                #An NxNxA array, where A is the number of actions. Rows in each slice contain probability distributions.
+                factorized_observation_function: NDArray[np.float64],    #An NxM array, where N is the number of env states and M = sum(percept_category_sizes)
+                transition_function: NDArray[np.float64],                #An NxNxA array, where A is the number of actions. Rows in each slice contain probability distributions.
                 initial_state: int = 0                                  #Start state of POMDP
                 ):
         '''
@@ -337,7 +337,7 @@ class List_Sequencer(Factorized_POMDP):
         # Slice offsets for each category block in the concatenated observation vector
         row_offset = np.cumsum([0] + percept_category_sizes[:-1])
 
-        def _one_hot(length: int, idx: int) -> NDArray[np.float_]:
+        def _one_hot(length: int, idx: int) -> NDArray[np.float64]:
             v = np.zeros(length, dtype=float)
             v[idx] = 1.0
             return v
@@ -577,7 +577,7 @@ class Series_Recognition_Probe(List_Sequencer):
         # Slice offsets for each category block in the concatenated observation vector
         row_offset = np.cumsum([0] + percept_category_sizes[:-1])
 
-        def _one_hot(length: int, idx: int) -> NDArray[np.float_]:
+        def _one_hot(length: int, idx: int) -> NDArray[np.float64]:
             v = np.zeros(length, dtype=float)
             v[idx] = 1.0
             return v

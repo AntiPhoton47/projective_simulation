@@ -12,7 +12,7 @@ license = {text = "Apache-2.0"}
 authors = [{name = "QIC-UIBK", email = "gorka.munoz-gil@uibk.ac.at"}]
 keywords = ['RL,', 'ML']
 classifiers = ["Natural Language :: English", "Intended Audience :: Developers", "Development Status :: 2 - Pre-Alpha", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3 :: Only"]
-dependencies = ['nbdev', 'numpy', 'matplotlib', 'scipy']
+dependencies = ['nbdev', 'numpy', 'matplotlib', 'scipy', 'networkx']
 
 [project.urls]
 Repository = "https://github.com/{user}/projective_simulation/"

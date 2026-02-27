@@ -15,8 +15,8 @@ class POMDP(Abstract_Env):
     """
     def __init__(self,
                  percepts: NDArray[np.int_],     #An SxK array where S is the number of Percepts and K is the number of categories for each percept. If 1d, converted to Sx1
-                 observation_function: NDArray[np.float_], #An NxS array, where N is the number of states in the cycle and S is the number of possible percepts. Rows contain probability distributions
-                 transition_function: NDArray[np.float_],  #An NxNxA array, where A is the number of actions. Rows in each slice contain probability distributions.
+                 observation_function: NDArray[np.float64], #An NxS array, where N is the number of states in the cycle and S is the number of possible percepts. Rows contain probability distributions
+                 transition_function: NDArray[np.float64],  #An NxNxA array, where A is the number of actions. Rows in each slice contain probability distributions.
                  initial_state: int = 0                                                 #Start state of POMDP
                 ):
         '''
@@ -99,7 +99,7 @@ class Noisy_Cycle(POMDP):
     def __init__(self,
                  percepts: NDArray[np.int_],     #an SxK array where S is the number of Percepts and K is the number of categories for each percept
                                                                                         #if 1d, converted to Sx1
-                 observation_function: NDArray[np.float_],  #An NxS array, where N is the number of states in the cycle and S is the number of possible percepts
+                 observation_function: NDArray[np.float64],  #An NxS array, where N is the number of states in the cycle and S is the number of possible percepts
                  initial_state: int = 0,
                  supress_warning: bool = False                                          #warns if Action != 0 is input to transition function
                 ):
