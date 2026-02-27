@@ -61,7 +61,7 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import numpy as np
 
-def plot_heatmap(matrix: NDArray[np.float_], 
+def plot_heatmap(matrix: NDArray[np.float64], 
                  title: str ="Expectation of Memory Traces",    
                  xlabel: str ="Trace", 
                  ylabel: str ="Time Step", 
