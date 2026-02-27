@@ -4,11 +4,11 @@
 __all__ = ['NUMBA_ACTIVATED', 'failed_numba_import', 'maybe_jitclass', 'maybe_njit', 'rand_choice_nb', 'Forager',
            'train_loop_reset', 'run_agents_reset_1D', 'run_agents_reset_2D']
 
-# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #78fb8e76
+# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #86f08069
 import numpy as np
 import warnings
 
-# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #0fca9c99
+# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #230a4351
 # This library has been developed for its use in Numba. However, its use is more complicated than the vanilla numpy. To avoid
 # a steep learning curve, we don't force numba, but allow the user to freely choose to use it.
 import os
@@ -48,14 +48,14 @@ def maybe_njit(*args, **kwargs):
         return func
     return deco    
 
-# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #e9563d13
+# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #47fb632b
 @maybe_njit()
 def rand_choice_nb(arr: np.array, # A 1D numpy array of values to sample from.
                    prob: np.array # A 1D numpy array of probabilities for the given samples.
                   ) -> float: # A random sample from the given array with a given probability.
     return arr[np.searchsorted(np.cumsum(prob), np.random.random(), side="right")]
 
-# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #1165d6e9
+# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #b29c8c05
 if NUMBA_ACTIVATED:
     spec = [
         ("size_state_space", types.int64[:]),
@@ -367,7 +367,7 @@ class Forager():
         ''' simplified to case of single forager. Returns list because is what deliberate needs'''
         return np.array([self.agent_state])
 
-# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #d4e75dac
+# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #a49c4e38
 @maybe_njit()
 def train_loop_reset(episodes : int, # Number of episodes
                      time_ep : int, # Length of an episode 
@@ -429,7 +429,7 @@ def train_loop_reset(episodes : int, # Number of episodes
       
     return (save_rewards/time_ep, policy_t) if h_mat_allT else (save_rewards/time_ep, agent.h_matrix)
 
-# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #c67d0807
+# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #4714a6f7
 from ..envs.foraging import ResetEnv_1D
 
 
@@ -513,7 +513,7 @@ def run_agents_reset_1D(episodes, # Number of episodes
         
     return save_rewards, save_h_matrix
 
-# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #59d31561
+# %% ../../nbs/lib_nbs/agents/foraging_agents.ipynb #38058505
 from ..envs.foraging import ResetEnv_2D
 
 

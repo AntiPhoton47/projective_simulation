@@ -5,7 +5,7 @@
 # %% auto #0
 __all__ = ['random_func']
 
-# %% ../nbs/tutorials/contributing/00_contributing.ipynb #41c706a5
+# %% ../nbs/tutorials/contributing/00_contributing.ipynb #6153050f
 import numpy as np
 
 def random_func(k): return k*np.random.rand()
