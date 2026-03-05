@@ -1,11 +1,33 @@
 [build-system]
-requires = ["setuptools>=64.0"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name="projective_simulation"
-requires-python=">=3.10"
-dynamic = [ "keywords", "description", "version", "dependencies", "optional-dependencies", "readme", "license", "authors", "classifiers", "entry-points", "scripts", "urls"]
+name = "projective_simulation"
+dynamic = ["version"]
+description = "Library for Projective Simulation"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [{name = "QIC-UIBK", email = "gorka.munoz-gil@uibk.ac.at"}]
+keywords = ['RL,', 'ML']
+classifiers = ["Natural Language :: English", "Intended Audience :: Developers", "Development Status :: 2 - Pre-Alpha", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3 :: Only"]
+dependencies = ['nbdev', 'numpy', 'matplotlib', 'scipy', 'networkx']
 
-[tool.uv]
-cache-keys = [{ file = "pyproject.toml" }, { file = "settings.ini" }, { file = "setup.py" }]
+[project.urls]
+Repository = "https://github.com/{user}/projective_simulation/"
+Documentation = "https://{user}.github.io/projective_simulation/"
+
+[project.entry-points.nbdev]
+projective_simulation = "projective_simulation._modidx:d"
+
+[tool.setuptools.dynamic]
+version = {attr = "projective_simulation.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["projective_simulation"]
+
+[tool.nbdev]
+doc_path = 'docs'
+branch = 'master'
+custom_sidebar = true
